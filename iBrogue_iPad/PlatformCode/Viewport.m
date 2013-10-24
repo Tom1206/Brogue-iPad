@@ -43,6 +43,8 @@
 @property (nonatomic, assign) CGFontRef cgFont;
 @property (nonatomic, assign) CGColorRef prevColor;
 @property (nonatomic, assign) CGColorSpaceRef colorSpace;
+@property (nonatomic, assign) short hWindow;
+@property (nonatomic, assign) short vWindow;
 
 @end
 
@@ -81,7 +83,6 @@
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         self.characterSizeDictionary = [NSMutableDictionary dictionaryWithCapacity:1];
-        // TODO: this should just grab the screens bounds... brogue does well with just about any size
         self.hWindow = [[UIScreen mainScreen] bounds].size.height;
         self.vWindow = [[UIScreen mainScreen] bounds].size.width;
  
@@ -101,16 +102,15 @@
         // black out
         [self clearColors];
         
-        _cgFont = CGFontCreateWithFontName((CFStringRef)@"Monaco");
-        _fastFontCharacterSize = [@"M" sizeWithFont:[self fastFont]];
-        _slowFontCharacterSize = [@"M" sizeWithFont:[self slowFont]];
-        //_slowFontCharacterSize.width += 1;
-        _colorSpace = CGColorSpaceCreateDeviceRGB();
+        self.cgFont = CGFontCreateWithFontName((CFStringRef)@"Monaco");
+        self.fastFontCharacterSize = [@"M" sizeWithFont:[self fastFont]];
+        self.slowFontCharacterSize = [@"M" sizeWithFont:[self slowFont]];
+        self.colorSpace = CGColorSpaceCreateDeviceRGB();
     });
 }
 
-- (void)setString:(NSString *)cString withBackgroundColor:(CGColorRef)bgColor letterColor:(CGColorRef)letterColor atLocationX:(short)x locationY:(short)y withChar:(unsigned short)character { 
-    __block CGPoint stringOrigin = [self getStringOriginWithCharacter:character andString:cString atX:x andY:y];
+- (void)setString:(NSString *)cString withBackgroundColor:(CGColorRef)bgColor letterColor:(CGColorRef)letterColor atLocation:(CGPoint)location withChar:(unsigned short)character {
+    __block CGPoint stringOrigin = [self getStringOriginWithCharacter:character andString:cString atLocation:location];
     
     if (character == FLOOR_CHAR) {
         character = 46;
@@ -120,6 +120,9 @@
     }
     
     dispatch_async(dispatch_get_main_queue(), ^{
+        NSInteger x = location.x;
+        NSInteger y = location.y;
+        
         CGColorRelease(_bgColorArray[x][y]);
         CGColorRelease(_letterColorArray[x][y]);
         
@@ -170,8 +173,6 @@
     CGRect startRect = _rectArray[startX][startY];
 
     _prevColor = nil;
-   // _prevColor = _bgColorArray[startX][startY];
- //   CGContextSetFillColorWithColor(_context, _prevColor);
 
     // draw the background rect colors.
     // In order to speed things up we do not draw black rects
@@ -239,8 +240,6 @@
                 [self drawTheString:_letterArray[i][j] centeredIn:_rectArray[i][j] withLetterColor:_letterColorArray[i][j] withChar:_charArray[i][j] stringOrigin:_stringOriginArray[i][j]];
             }
         }
-        
-       // _prevColor = nil;
     }
     
 //   [[MGBenchmark session:@"draw"] total];
@@ -287,7 +286,7 @@
     return stringOrigin;
 }
 
-- (CGPoint)getStringOriginWithCharacter:(short)character andString:(NSString *)aString atX:(NSInteger)x andY:(NSInteger)y {
+- (CGPoint)getStringOriginWithCharacter:(short)character andString:(NSString *)aString atLocation:(CGPoint)location {
     CGSize stringSize;
     
     if (character > 127 && character != FLOOR_CHAR) {
@@ -305,6 +304,8 @@
         stringSize = _fastFontCharacterSize;
     }
     
+    NSInteger x = location.x;
+    NSInteger y = location.y;
     CGPoint stringOrigin = [self originForCharacterSize:stringSize andRect:_rectArray[x][y]];
     
     if (character == FOLIAGE_CHAR) {
@@ -318,8 +319,8 @@
 }
 
 - (void)setHorizWindow:(short)hPx vertWindow:(short)vPx {
-    _hPixels = hPx / kCOLS;
-    _vPixels = vPx / kROWS;
+    self.hPixels = hPx / kCOLS;
+    self.vPixels = vPx / kROWS;
     self.hWindow = hPx;
     self.vWindow = vPx;
 
